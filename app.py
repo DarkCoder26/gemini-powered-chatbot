@@ -1,5 +1,4 @@
 import os
-
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
@@ -9,16 +8,18 @@ from google import genai
 # Load environment variables
 # --------------------------------------------------
 
-load_dotenv()
+load_dotenv() # Keeps local .env working
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+# Try Streamlit secrets first (Cloud), then fallback to OS environment (Local)
+API_KEY = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
     st.error(
         "GEMINI_API_KEY was not found. "
-        "Please add it to your .env file."
+        "Please add it to Streamlit Secrets or your local .env file."
     )
     st.stop()
+    
 
 
 # --------------------------------------------------
