@@ -64,11 +64,10 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # --------------------------------------------------
-# User input (Text and Voice)
+# User input (Text and Voice) - MOVED OUT OF SIDEBAR
 # --------------------------------------------------
-# Place audio input in the sidebar to keep the chat interface clean
-with st.sidebar:
-    st.header("🎤 Voice Input")
+# Placed in a clean expander right above the chat input
+with st.expander("🎤 Tap here to send a Voice Message"):
     audio_input = st.audio_input("Record a voice message")
 
 text_input = st.chat_input("Type your message...")
@@ -113,9 +112,8 @@ if user_prompt:
             )
         )
 
-    # If current input is audio, append the byte data to the current context
     if audio_input:
-        conversation.pop() # Remove the placeholder text we just added for history
+        conversation.pop() 
         conversation.append(
             types.Content(
                 role="user",
@@ -132,9 +130,9 @@ if user_prompt:
     with st.chat_message("assistant"):
         with st.spinner("Codex is thinking..."):
             try:
-                # Note: Changed to gemini-2.0-flash as 3.5 does not exist yet.
+                # FIXED: Changed model to 1.5-flash to resolve the 404 error
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-1.5-flash", 
                     contents=conversation
                 )
                 ai_response = response.text
@@ -160,4 +158,5 @@ if user_prompt:
         "role": "model",
         "content": ai_response
     })
+
     
