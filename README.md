@@ -1,4 +1,4 @@
-# DarkCoder AI Chatbot (Codex)
+# DarkCoder AI Chatbot (Satish Chaudhari)
 
 A professional AI assistant built with Streamlit and Gemini. This updated version features real-time text chat, session history, a clean UI, and full voice-to-voice capabilities (Voice-to-Text and Text-to-Speech)[span_0](start_span)[span_0](end_span).
 
