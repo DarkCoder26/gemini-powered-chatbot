@@ -1,16 +1,16 @@
 import os
+import io
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
-
+from google.genai import types
+from gtts import gTTS
 
 # --------------------------------------------------
 # Load environment variables
 # --------------------------------------------------
+load_dotenv()
 
-load_dotenv() # Keeps local .env working
-
-# Try Streamlit secrets first (Cloud), then fallback to OS environment (Local)
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
@@ -19,129 +19,145 @@ if not API_KEY:
         "Please add it to Streamlit Secrets or your local .env file."
     )
     st.stop()
-    
-
 
 # --------------------------------------------------
 # Configure Gemini
 # --------------------------------------------------
-
 client = genai.Client(api_key=API_KEY)
 
-
 # --------------------------------------------------
-# Streamlit page configuration
+# Streamlit page configuration & Professional UI
 # --------------------------------------------------
-
 st.set_page_config(
-    page_title="AI Chatbot",
+    page_title="DarkCoder AI | Codex",
     page_icon="🤖",
-    layout="centered"
+    layout="wide"
 )
 
+# Inject custom CSS to clean up the UI
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        .stChatMessage { border-radius: 10px; padding: 15px; margin-bottom: 10px; }
+        .block-container { padding-top: 2rem; padding-bottom: 5rem; }
+    </style>
+""", unsafe_allow_html=True)
 
-# --------------------------------------------------
-# UI
-# --------------------------------------------------
-
-st.title("🤖 AI Chatbot")
-st.caption("Chatbot powered by Gemini")
-
+st.title("🤖 Codex AI Assistant")
+st.caption("Advanced Voice & Text Chatbot by DarkCoder")
 
 # --------------------------------------------------
 # Initialize chat history
 # --------------------------------------------------
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
 
 # --------------------------------------------------
 # Display previous messages
 # --------------------------------------------------
-
 for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
+    # Use "assistant" for Streamlit's built-in bot UI icon, "user" for human
+    ui_role = "assistant" if message["role"] == "model" else "user"
+    with st.chat_message(ui_role):
         st.markdown(message["content"])
 
-
 # --------------------------------------------------
-# User input
+# User input (Text and Voice)
 # --------------------------------------------------
+# Place audio input in the sidebar to keep the chat interface clean
+with st.sidebar:
+    st.header("🎤 Voice Input")
+    audio_input = st.audio_input("Record a voice message")
 
-user_input = st.chat_input("Type your message...")
+text_input = st.chat_input("Type your message...")
 
+user_prompt = None
+audio_data = None
 
-if user_input:
+if text_input:
+    user_prompt = text_input
 
+if audio_input:
+    user_prompt = "Please listen to this audio and reply."
+    audio_data = audio_input.getvalue()
+
+if user_prompt:
     # ----------------------------------------------
     # Display user message
     # ----------------------------------------------
-
     with st.chat_message("user"):
-        st.markdown(user_input)
+        if text_input:
+            st.markdown(text_input)
+        else:
+            st.audio(audio_input)
 
     # ----------------------------------------------
-    # Save user message
+    # Save user message to UI history
     # ----------------------------------------------
-
     st.session_state.messages.append({
         "role": "user",
-        "content": user_input
+        "content": text_input if text_input else "🎤 Voice Note"
     })
 
-
     # ----------------------------------------------
-    # Convert Streamlit history to Gemini format
+    # Convert Streamlit history to Gemini SDK format
     # ----------------------------------------------
-
     conversation = []
-
     for message in st.session_state.messages:
+        conversation.append(
+            types.Content(
+                role=message["role"],
+                parts=[types.Part.from_text(text=message["content"])]
+            )
+        )
 
-        conversation.append({
-            "role": message["role"],
-            "parts": [
-                {
-                    "text": message["content"]
-                }
-            ]
-        })
-
+    # If current input is audio, append the byte data to the current context
+    if audio_input:
+        conversation.pop() # Remove the placeholder text we just added for history
+        conversation.append(
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_bytes(data=audio_data, mime_type='audio/wav'),
+                    types.Part.from_text(text="Please listen to this audio and reply.")
+                ]
+            )
+        )
 
     # ----------------------------------------------
-    # Generate Gemini response
+    # Generate Gemini response & Audio Output
     # ----------------------------------------------
-
     with st.chat_message("assistant"):
-
-        with st.spinner("Thinking..."):
-
+        with st.spinner("Codex is thinking..."):
             try:
-
+                # Note: Changed to gemini-2.0-flash as 3.5 does not exist yet.
                 response = client.models.generate_content(
-                    model="gemini-3.5-flash",
+                    model="gemini-2.0-flash",
                     contents=conversation
                 )
-
                 ai_response = response.text
+                
+                st.markdown(ai_response)
+                
+                # Convert text response to voice
+                tts = gTTS(text=ai_response, lang='en')
+                audio_bytes_io = io.BytesIO()
+                tts.write_to_fp(audio_bytes_io)
+                
+                # Autoplay the generated voice
+                st.audio(audio_bytes_io.getvalue(), format="audio/mp3", autoplay=True)
 
             except Exception as e:
-
-                ai_response = (
-                    "Sorry, I couldn't generate a response.\n\n"
-                    f"Error: `{str(e)}`"
-                )
-
-        st.markdown(ai_response)
-
+                ai_response = f"Sorry, I couldn't generate a response.\n\nError: `{str(e)}`"
+                st.error(ai_response)
 
     # ----------------------------------------------
     # Save AI response
     # ----------------------------------------------
-
     st.session_state.messages.append({
         "role": "model",
         "content": ai_response
     })
+    
