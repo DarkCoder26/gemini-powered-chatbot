@@ -132,7 +132,7 @@ if user_prompt:
             try:
                 # FIXED: Changed model to 1.5-flash to resolve the 404 error
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash", 
+                    model="gemini-3.5-flash", 
                     contents=conversation
                 )
                 ai_response = response.text
